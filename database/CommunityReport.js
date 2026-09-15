@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const locationSchema = new mongoose.Schema(
   {
-    type: { type: String, enum: ['Point'], default: 'Point', required: true },
+    type: { type: String, enum: ['Point'] },
     coordinates: {
       type: [Number],
       validate: {
@@ -22,11 +22,17 @@ const communityReportSchema = new mongoose.Schema(
     mediaType: { type: String, enum: ['photo', 'voice', 'text'], required: true },
     mediaUrl: { type: String, trim: true },
     textObservation: { type: String, trim: true },
-    location: { type: locationSchema, required: true },
+    location: { type: locationSchema, required: true, validate: {
+      validator: (value) => Boolean(value?.coordinates?.length === 2 || value?.label),
+      message: 'location requires coordinates or a landmark label'
+    } },
     extractedInsights: {
       summary: String,
       hazardType: String,
-      severity: { type: String, enum: ['low', 'medium', 'high', 'critical', 'unknown'], default: 'unknown' },
+      hazard_type: String,
+      severity: { type: String, enum: ['Low', 'Medium', 'High', 'Critical', 'low', 'medium', 'high', 'critical', 'unknown'], default: 'unknown' },
+      recommendedAction: String,
+      recommended_action: String,
       confidence: { type: Number, min: 0, max: 1 }
     },
     verificationStatus: {

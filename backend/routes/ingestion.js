@@ -3,14 +3,20 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const CommunityReport = require('../../database/CommunityReport');
-const { extractInsights } = require('../../ai-engine/insightService');
+const { analyzeReport } = require('../../ai-engine/insightService');
 
 const router = express.Router();
 const uploadDirectory = path.resolve(process.env.UPLOAD_DIR || 'uploads');
 fs.mkdirSync(uploadDirectory, { recursive: true });
 const upload = multer({
   dest: uploadDirectory,
-  limits: { fileSize: 15 * 1024 * 1024, files: 1 }
+  limits: { fileSize: 15 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, callback) => {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('audio/')) return callback(null, true);
+    const error = new Error('Only image and audio files are accepted');
+    error.status = 400;
+    callback(error);
+  }
 });
 
 function locationFromBody(body) {
@@ -39,6 +45,8 @@ router.post('/', upload.fields([{ name: 'media_file', maxCount: 1 }, { name: 'me
   try {
     const file = req.files?.media_file?.[0] || req.files?.media?.[0];
     const mediaType = req.body.media_type || req.body.mediaType || (file?.mimetype.startsWith('audio/') ? 'voice' : file ? 'photo' : 'text');
+    if (mediaType === 'photo' && file && !file.mimetype.startsWith('image/')) return res.status(400).json({ error: 'photo reports require an image upload' });
+    if (mediaType === 'voice' && file && !file.mimetype.startsWith('audio/')) return res.status(400).json({ error: 'voice reports require an audio upload' });
     const textObservation = req.body.text_observation || req.body.textObservation;
     const userRole = req.body.user_role || req.body.userRole;
     if (!userRole) return res.status(400).json({ error: 'user_role is required' });
@@ -54,10 +62,28 @@ router.post('/', upload.fields([{ name: 'media_file', maxCount: 1 }, { name: 'me
       verificationStatus: 'pending_verification'
     });
     try {
-      report.extractedInsights = await extractInsights(report.toObject());
+      const locationFilters = [{ 'location.label': report.location.label }];
+      if (report.location.coordinates?.length === 2) {
+        const [longitude, latitude] = report.location.coordinates;
+        locationFilters.push({ location: { $geoWithin: { $centerSphere: [[longitude, latitude], 2000 / 6378100] } } });
+      }
+      const recentReports = await CommunityReport.find({
+        _id: { $ne: report._id },
+        $or: locationFilters,
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      }).sort({ createdAt: -1 }).limit(20).lean();
+      const analysis = await analyzeReport(report.toObject(), recentReports);
+      report.extractedInsights = {
+        hazard_type: analysis.hazard_type,
+        hazardType: analysis.hazard_type,
+        severity: analysis.severity,
+        summary: analysis.summary,
+        recommended_action: analysis.recommended_action,
+        recommendedAction: analysis.recommended_action
+      };
       await report.save();
     } catch (error) {
-      console.error('Insight extraction failed:', error.message);
+      console.error('AI analysis failed:', error.message);
     }
     res.status(201).json({ reportId: report._id, report_id: report._id });
   } catch (error) { next(error); }

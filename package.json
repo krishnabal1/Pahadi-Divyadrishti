@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "node --watch backend/server.js",
-    "check": "node --check backend/server.js && node --check backend/routes/ingestion.js && node --check ai-engine/insightService.js"
+    "seed": "node scripts/seed.js",
+    "check": "node --check backend/server.js && node --check backend/routes/ingestion.js && node --check ai-engine/insightService.js && node --check database/CommunityReport.js && node --check scripts/seed.js"
   },
   "engines": {
     "node": ">=18"

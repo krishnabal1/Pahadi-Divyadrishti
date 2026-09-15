@@ -3,19 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pahadi Nazar — Community Alerts</title>
+  <meta name="description" content="Verified community intelligence for safer mountain roads and villages.">
+  <title>Pahadi Nazar | Community alerts</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <main class="shell">
-    <header><p class="eyebrow">PAHADI NAZAR</p><h1>Verified community alerts</h1><p>Local observations, shared early.</p></header>
-    <section id="alerts" aria-live="polite"><p>Loading verified alerts…</p></section>
+  <main class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">PAHADI NAZAR <span class="live-dot"></span> LIVE</p>
+        <h1>See it. Share it.<br><em>Stay safer.</em></h1>
+        <p class="hero-copy">Verified community intelligence for safer mountain roads, homes and livelihoods.</p>
+      </div>
+      <button class="primary-button hero-action" id="open-modal">＋ Report an observation</button>
+    </header>
+
+    <section class="toolbar" aria-label="Alert filters">
+      <div><p class="section-kicker">COMMUNITY SIGNALS</p><h2>Verified alerts</h2></div>
+      <div class="filters"><label for="role-filter">Filter by role</label><select id="role-filter"><option value="all">All community voices</option><option value="driver">Drivers</option><option value="elder">Elders</option><option value="shopkeeper">Shopkeepers</option><option value="student">Students</option><option value="resident">Residents</option></select><button class="refresh-button" id="refresh" title="Refresh alerts">↻ <span>Refresh</span></button></div>
+    </section>
+    <div id="status" class="status" aria-live="polite">Loading verified alerts…</div>
+    <section id="alerts" class="alert-grid" aria-live="polite"></section>
   </main>
-  <script>
-    fetch('/api/alerts').then((response) => response.json()).then((alerts) => {
-      const target = document.querySelector('#alerts');
-      target.innerHTML = alerts.length ? alerts.map((alert) => `<article><span class="severity ${alert.extractedInsights?.severity || 'unknown'}">${alert.extractedInsights?.severity || 'unknown'}</span><h2>${alert.extractedInsights?.summary || alert.textObservation || 'Community observation'}</h2><p>${alert.location?.label || `${alert.location.coordinates[1].toFixed(4)}, ${alert.location.coordinates[0].toFixed(4)}`}</p></article>`).join('') : '<p>No verified alerts at this time.</p>';
-    }).catch(() => { document.querySelector('#alerts').innerHTML = '<p>Alerts are temporarily unavailable.</p>'; });
-  </script>
+
+  <div class="modal-backdrop" id="modal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="close-button" id="close-modal" aria-label="Close">×</button>
+      <p class="section-kicker">SHARE LOCAL KNOWLEDGE</p><h2 id="modal-title">Report an observation</h2><p class="modal-intro">Your report will be reviewed before appearing as a verified alert.</p>
+      <form id="report-form"><label>Your role<select name="user_role" required><option value="resident">Resident</option><option value="driver">Driver</option><option value="elder">Elder</option><option value="shopkeeper">Shopkeeper</option><option value="student">Student</option></select></label><label>What did you observe?<textarea name="text_observation" rows="4" required placeholder="Describe a road issue, water change, or other observation…"></textarea></label><div class="form-row"><label>Latitude<input name="latitude" type="number" step="any" min="-90" max="90" placeholder="30.3165"></label><label>Longitude<input name="longitude" type="number" step="any" min="-180" max="180" placeholder="78.0322"></label></div><label>Landmark or place name<input name="landmark" placeholder="Near the old bridge"></label><p id="form-status" class="form-status" aria-live="polite"></p><button class="primary-button" type="submit">Submit report</button></form>
+    </section>
+  </div>
+  <script src="/app.js"></script>
 </body>
 </html>
