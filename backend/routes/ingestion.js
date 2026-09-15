@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
 const CommunityReport = require('../../database/CommunityReport');
@@ -18,6 +19,10 @@ const upload = multer({
     callback(error);
   }
 });
+
+function isValidReportId(id) {
+  return mongoose.isValidObjectId(id);
+}
 
 function locationFromBody(body) {
   const landmark = body.landmark || body.locationLabel;
@@ -85,8 +90,47 @@ router.post('/', upload.fields([{ name: 'media_file', maxCount: 1 }, { name: 'me
     } catch (error) {
       console.error('AI analysis failed:', error.message);
     }
-    res.status(201).json({ reportId: report._id, report_id: report._id });
+    res.status(201).json({ reportId: report._id, report_id: report._id, report: report.toJSON() });
   } catch (error) { next(error); }
 });
+
+async function confirmReport(req, res, next) {
+  try {
+    const { id } = req.params;
+    if (!isValidReportId(id)) return res.status(400).json({ error: 'Invalid report ID' });
+    const reportId = new mongoose.Types.ObjectId(id);
+    const confirmerId = req.ip;
+    const report = await CommunityReport.findOneAndUpdate(
+      { _id: reportId, confirmedBy: { $ne: confirmerId } },
+      { $addToSet: { confirmedBy: confirmerId }, $inc: { confirmationsCount: 1 } },
+      { new: true, runValidators: true }
+    );
+    if (!report) {
+      const existingReport = await CommunityReport.exists({ _id: reportId });
+      if (!existingReport) return res.status(404).json({ error: 'Report not found' });
+      return res.status(409).json({ success: false, message: 'Already confirmed' });
+    }
+
+    if (report.confirmationsCount >= 3) {
+      await CommunityReport.updateOne(
+        { _id: reportId, confirmationsCount: { $gte: 3 }, verificationStatus: { $ne: 'verified' } },
+        { $set: { verificationStatus: 'verified', verifiedAt: new Date() } }
+      );
+    }
+
+    const updatedReport = await CommunityReport.findById(reportId);
+    res.json({
+      success: true,
+      count: updatedReport.confirmationsCount,
+      status: updatedReport.verificationStatus,
+      reportId: updatedReport._id,
+      report_id: updatedReport._id,
+      report: updatedReport.toJSON()
+    });
+  } catch (error) { next(error); }
+}
+
+router.post('/:id/confirm', confirmReport);
+router.post('/:id/upvote', confirmReport);
 
 module.exports = router;

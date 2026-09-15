@@ -15,12 +15,19 @@ app.use(cors({ origin: allowedOrigin || false }));
 app.use(express.json({ limit: '2mb' }));
 app.use('/uploads', express.static(path.resolve(process.env.UPLOAD_DIR || 'uploads')));
 app.use('/api/reports', ingestionRoutes);
+app.use('/api/alerts', ingestionRoutes);
 app.use(express.static(path.resolve('public')));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'pahadi-nazar' }));
 app.get('/api/alerts', async (req, res, next) => {
   try {
-    const alerts = await CommunityReport.find({ verificationStatus: 'verified' }).sort({ observedAt: -1 }).limit(100).lean();
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const alerts = await CommunityReport.find({
+      $or: [
+        { verificationStatus: 'verified' },
+        { verificationStatus: { $in: ['pending_verification', 'pending'] }, createdAt: { $gte: cutoff } }
+      ]
+    }).sort({ createdAt: -1 }).limit(100).lean();
     res.json(alerts);
   } catch (error) { next(error); }
 });

@@ -1,0 +1,185 @@
+{
+  "template": {
+    "provider": {
+      "description": "LLM provider used for new sessions.",
+      "enum": [
+        "openai",
+        "openrouter",
+        "nvidia",
+        "ollama",
+        "anthropic",
+        "gemini",
+        "vertex-ai"
+      ],
+      "type": "string",
+      "eg": "openai"
+    },
+    "model": {
+      "description": "Model identifier sent to the selected provider.",
+      "type": "string",
+      "eg": "gpt-5.4-mini"
+    },
+    "effort": {
+      "description": "Reasoning effort requested from models that support it.",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "max"
+      ],
+      "type": "string",
+      "eg": "medium"
+    },
+    "maxTokens": {
+      "description": "Maximum number of tokens the model may generate in one response.",
+      "type": "number",
+      "eg": 16384
+    },
+    "maxIterations": {
+      "description": "Maximum number of model and tool iterations allowed in one agent or subagent turn.",
+      "type": "number",
+      "eg": 100
+    },
+    "errorRetries": {
+      "description": "Number of retries for transient provider and network failures.",
+      "type": "number",
+      "eg": 3
+    },
+    "permissionMode": {
+      "description": "Controls whether Agav asks before tools perform sensitive actions.",
+      "enum": [
+        "ask",
+        "auto-accept",
+        "deny-writes"
+      ],
+      "type": "string",
+      "eg": "ask"
+    },
+    "allowedTools": {
+      "description": "Optional tool names or scoped tool patterns that may run without confirmation.",
+      "type": "array",
+      "eg": [
+        "read_file",
+        "run_command:npm run *"
+      ]
+    },
+    "systemPrompt": {
+      "description": "Additional project-specific instructions included in the system prompt.",
+      "type": "string",
+      "eg": "Follow the conventions documented in this repository."
+    },
+    "hideAbsolutePath": {
+      "description": "Whether to hide absolute paths in terminal outputs, replacing them with relative ones.",
+      "type": "boolean",
+      "eg": false
+    },
+    "showThinking": {
+      "description": "Whether to display the model's reasoning/thinking text as it streams. Toggle with Ctrl+T at runtime.",
+      "type": "boolean",
+      "eg": false
+    },
+    "anthropicApiKey": {
+      "description": "Anthropic API key. Prefer the ANTHROPIC_API_KEY environment variable for secrets.",
+      "type": "string",
+      "eg": "set-via-ANTHROPIC_API_KEY"
+    },
+    "openaiApiKey": {
+      "description": "OpenAI API key. Prefer the OPENAI_API_KEY environment variable for secrets.",
+      "type": "string",
+      "eg": "set-via-OPENAI_API_KEY"
+    },
+    "openrouterApiKey": {
+      "description": "OpenRouter API key. Prefer the OPENROUTER_API_KEY environment variable for secrets.",
+      "type": "string",
+      "eg": "set-via-OPENROUTER_API_KEY"
+    },
+    "nvidiaApiKey": {
+      "description": "NVIDIA NIM API key. Prefer the NVIDIA_API_KEY environment variable for secrets.",
+      "type": "string",
+      "eg": "set-via-NVIDIA_API_KEY"
+    },
+    "deepseekApiKey": {
+      "description": "DeepSeek API key. Prefer the DEEPSEEK_API_KEY environment variable for secrets.",
+      "type": "string",
+      "eg": "set-via-DEEPSEEK_API_KEY"
+    },
+    "openaiBaseURL": {
+      "description": "Override the OpenAI base URL to target an OpenAI-compatible endpoint. Prefer the OPENAI_BASE_URL environment variable.",
+      "type": "string",
+      "eg": "https://my-gateway.example.com/v1"
+    },
+    "openaiHeaders": {
+      "description": "Extra HTTP headers sent with every OpenAI-provider request. Useful for OpenAI-compatible gateways that need custom auth or routing headers.",
+      "type": "object",
+      "eg": {
+        "x-api-key": "gateway-token",
+        "x-tenant": "team-a"
+      }
+    },
+    "geminiApiKey": {
+      "description": "Google Gemini API key. Prefer the GEMINI_API_KEY environment variable for secrets.",
+      "type": "string",
+      "eg": "set-via-GEMINI_API_KEY"
+    },
+    "vertexAICredentialsPath": {
+      "description": "Path to a Google Cloud service-account JSON file used by Vertex AI. Setting it enables the provider. Prefer the VERTEX_AI_CREDENTIALS_PATH environment variable.",
+      "type": "string",
+      "eg": "/path/to/service-account.json"
+    },
+    "vertexAILocation": {
+      "description": "Vertex AI region, or \"global\" for the multi-region endpoint. Can also be set with VERTEX_AI_LOCATION.",
+      "type": "string",
+      "eg": "global"
+    },
+    "ollamaEndpoint": {
+      "description": "Complete Ollama API base URL; overrides ollamaHost and ollamaPort.",
+      "type": "string",
+      "eg": "http://localhost:11434"
+    },
+    "ollamaHost": {
+      "description": "Ollama server hostname used when ollamaEndpoint is not configured.",
+      "type": "string",
+      "eg": "localhost"
+    },
+    "ollamaPort": {
+      "description": "Ollama server port used when ollamaEndpoint is not configured.",
+      "type": "number",
+      "eg": 11434
+    },
+    "ollamaApiKey": {
+      "description": "Optional bearer token for a secured or hosted Ollama endpoint.",
+      "type": "string",
+      "eg": "your-ollama-api-key"
+    },
+    "hooks": {
+      "description": "Optional commands run after edits, after shell commands, or before commits.",
+      "type": "object",
+      "eg": {
+        "afterEdit": "npm run typecheck",
+        "preCommit": "npm test"
+      }
+    },
+    "theme": {
+      "description": "Optional terminal color and presentation overrides.",
+      "type": "object",
+      "eg": {
+        "userLabel": "blue",
+        "assistantLabel": "magenta",
+        "promptColor": "green"
+      }
+    },
+    "mcpServers": {
+      "description": "MCP server configurations keyed by the name shown inside Agav.",
+      "type": "object",
+      "eg": {
+        "everything": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@modelcontextprotocol/server-everything"
+          ]
+        }
+      }
+    }
+  }
+}

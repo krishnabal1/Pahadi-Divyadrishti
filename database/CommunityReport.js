@@ -41,6 +41,8 @@ const communityReportSchema = new mongoose.Schema(
       default: 'pending_verification',
       index: true
     },
+    confirmationsCount: { type: Number, default: 0 },
+    confirmedBy: { type: [String], default: [] },
     verifiedBy: String,
     verifiedAt: Date
   },

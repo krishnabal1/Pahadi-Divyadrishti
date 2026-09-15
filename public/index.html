@@ -5,9 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Verified community intelligence for safer mountain roads and villages.">
   <title>Pahadi Nazar | Community alerts</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <aside id="urgent-banner" class="urgent-banner" role="alert" hidden></aside>
   <main class="app-shell">
     <header class="hero">
       <div>
@@ -20,9 +22,13 @@
 
     <section class="toolbar" aria-label="Alert filters">
       <div><p class="section-kicker">COMMUNITY SIGNALS</p><h2>Verified alerts</h2></div>
-      <div class="filters"><label for="role-filter">Filter by role</label><select id="role-filter"><option value="all">All community voices</option><option value="driver">Drivers</option><option value="elder">Elders</option><option value="shopkeeper">Shopkeepers</option><option value="student">Students</option><option value="resident">Residents</option></select><button class="refresh-button" id="refresh" title="Refresh alerts">↻ <span>Refresh</span></button></div>
+      <div class="filters"><label for="alert-search">Search alerts</label><input id="alert-search" type="search" placeholder="Search location or alert" autocomplete="off"><label for="role-filter">Filter by role</label><select id="role-filter"><option value="all">All community voices</option><option value="driver">Drivers</option><option value="elder">Elders</option><option value="shopkeeper">Shopkeepers</option><option value="student">Students</option><option value="resident">Residents</option></select><button class="refresh-button" id="refresh" title="Refresh alerts">↻ <span>Refresh</span></button></div>
     </section>
     <div id="status" class="status" aria-live="polite">Loading verified alerts…</div>
+    <section class="map-panel" aria-label="Observation map">
+      <div class="map-heading"><p class="section-kicker">OBSERVATION MAP</p><p class="map-help">Select a marker to find its alert below.</p></div>
+      <div id="map"></div>
+    </section>
     <section id="alerts" class="alert-grid" aria-live="polite"></section>
   </main>
 
@@ -30,9 +36,10 @@
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <button class="close-button" id="close-modal" aria-label="Close">×</button>
       <p class="section-kicker">SHARE LOCAL KNOWLEDGE</p><h2 id="modal-title">Report an observation</h2><p class="modal-intro">Your report will be reviewed before appearing as a verified alert.</p>
-      <form id="report-form"><label>Your role<select name="user_role" required><option value="resident">Resident</option><option value="driver">Driver</option><option value="elder">Elder</option><option value="shopkeeper">Shopkeeper</option><option value="student">Student</option></select></label><label>What did you observe?<textarea name="text_observation" rows="4" required placeholder="Describe a road issue, water change, or other observation…"></textarea></label><div class="form-row"><label>Latitude<input name="latitude" type="number" step="any" min="-90" max="90" placeholder="30.3165"></label><label>Longitude<input name="longitude" type="number" step="any" min="-180" max="180" placeholder="78.0322"></label></div><label>Landmark or place name<input name="landmark" placeholder="Near the old bridge"></label><p id="form-status" class="form-status" aria-live="polite"></p><button class="primary-button" type="submit">Submit report</button></form>
+      <form id="report-form"><label>Your role<select name="user_role" required><option value="resident">Resident</option><option value="driver">Driver</option><option value="elder">Elder</option><option value="shopkeeper">Shopkeeper</option><option value="student">Student</option></select></label><label>What did you observe?<textarea name="text_observation" rows="4" required placeholder="Describe a road issue, water change, or other observation…"></textarea></label><label>Supporting image<input name="media_file" type="file" accept="image/*"></label><div class="form-row"><label>Latitude<input name="latitude" type="number" step="any" min="-90" max="90" placeholder="30.3165"></label><label>Longitude<input name="longitude" type="number" step="any" min="-180" max="180" placeholder="78.0322"></label></div><label>Landmark or place name<input name="landmark" placeholder="Near the old bridge"></label><p id="form-status" class="form-status" aria-live="polite"></p><button class="primary-button" type="submit">Submit report</button></form>
     </section>
   </div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="/app.js"></script>
 </body>
 </html>
