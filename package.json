@@ -1,0 +1,22 @@
+{
+  "name": "pahadi-nazar",
+  "version": "1.0.0",
+  "description": "Decentralized community intelligence and early-warning network for the Himalayan region",
+  "main": "backend/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js",
+    "check": "node --check backend/server.js && node --check backend/routes/ingestion.js && node --check ai-engine/insightService.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.9.5",
+    "multer": "^1.4.5-lts.1"
+  }
+}

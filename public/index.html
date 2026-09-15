@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pahadi Nazar — Community Alerts</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header><p class="eyebrow">PAHADI NAZAR</p><h1>Verified community alerts</h1><p>Local observations, shared early.</p></header>
+    <section id="alerts" aria-live="polite"><p>Loading verified alerts…</p></section>
+  </main>
+  <script>
+    fetch('/api/alerts').then((response) => response.json()).then((alerts) => {
+      const target = document.querySelector('#alerts');
+      target.innerHTML = alerts.length ? alerts.map((alert) => `<article><span class="severity ${alert.extractedInsights?.severity || 'unknown'}">${alert.extractedInsights?.severity || 'unknown'}</span><h2>${alert.extractedInsights?.summary || alert.textObservation || 'Community observation'}</h2><p>${alert.location?.label || `${alert.location.coordinates[1].toFixed(4)}, ${alert.location.coordinates[0].toFixed(4)}`}</p></article>`).join('') : '<p>No verified alerts at this time.</p>';
+    }).catch(() => { document.querySelector('#alerts').innerHTML = '<p>Alerts are temporarily unavailable.</p>'; });
+  </script>
+</body>
+</html>
