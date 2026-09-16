@@ -4,6 +4,10 @@ const roleFilter = document.querySelector('#role-filter');
 const alertSearch = document.querySelector('#alert-search');
 const modal = document.querySelector('#modal');
 const form = document.querySelector('#report-form');
+const locationSearch = document.querySelector('#location-search');
+const locationSearchButton = document.querySelector('#location-search-button');
+const locationSearchStatus = document.querySelector('#location-search-status');
+const locationSuggestions = document.querySelector('#location-suggestions');
 const urgentBanner = document.querySelector('#urgent-banner');
 let observations = [];
 let alerts = observations;
@@ -11,6 +15,9 @@ let lastRetrievedAt = null;
 let alertsRequestInFlight = false;
 let observationMap = null;
 let mapMarkers = null;
+let reportLocationMap = null;
+let reportLocationMarker = null;
+const defaultReportLocation = { lat: 30.3165, lng: 78.0322 };
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const insight = (alert, key, fallback = '') => alert.extractedInsights?.[key] || alert.extractedInsights?.[key === 'hazard_type' ? 'hazardType' : key] || fallback;
@@ -155,6 +162,116 @@ function initMap() {
   }
 }
 
+async function searchReportLocation() {
+  const query = locationSearch.value.trim();
+  if (!query) {
+    locationSearchStatus.textContent = 'Enter a city, landmark, or place name.';
+    return;
+  }
+  locationSearchButton.disabled = true;
+  locationSearchStatus.textContent = 'Searching...';
+  try {
+    const results = await fetchLocationResults(query, 1);
+    if (!results.length) {
+      locationSearchStatus.textContent = 'No matching location found.';
+      return;
+    }
+    const result = results[0];
+    applyLocationResult(result);
+  } catch (error) {
+    console.error('Location search failed:', error);
+    locationSearchStatus.textContent = 'Unable to search right now. Choose a point on the map.';
+  } finally {
+    locationSearchButton.disabled = false;
+  }
+}
+
+async function fetchLocationResults(query, limit) {
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=${limit}&q=${encodeURIComponent(query)}`, {
+    headers: { Accept: 'application/json' }
+  });
+  if (!response.ok) throw new Error(`Geocoder returned HTTP ${response.status}`);
+  return response.json();
+}
+
+function applyLocationResult(result) {
+  const location = { lat: Number(result.lat), lng: Number(result.lon) };
+  if (!Number.isFinite(location.lat) || !Number.isFinite(location.lng)) throw new Error('Geocoder returned invalid coordinates');
+  reportLocationMap.flyTo(location, 15);
+  setReportLocation(location);
+  locationSearch.value = result.display_name;
+  locationSearchStatus.textContent = result.display_name;
+  locationSuggestions.hidden = true;
+}
+
+let locationSearchTimer;
+locationSearch.addEventListener('input', () => {
+  window.clearTimeout(locationSearchTimer);
+  const query = locationSearch.value.trim();
+  locationSuggestions.hidden = true;
+  if (query.length < 3) return;
+  locationSearchTimer = window.setTimeout(async () => {
+    try {
+      const results = await fetchLocationResults(query, 5);
+      locationSuggestions.replaceChildren(...results.map((result) => {
+        const item = document.createElement('li');
+        item.textContent = result.display_name;
+        item.setAttribute('role', 'option');
+        item.addEventListener('click', () => applyLocationResult(result));
+        return item;
+      }));
+      locationSuggestions.hidden = results.length === 0;
+    } catch (error) {
+      console.error('Location suggestions failed:', error);
+    }
+  }, 400);
+});
+
+  function setReportLocation(location) {
+    const latitudeInput = form.elements.latitude;
+    const longitudeInput = form.elements.longitude;
+    latitudeInput.value = location.lat.toFixed(6);
+    longitudeInput.value = location.lng.toFixed(6);
+    if (!reportLocationMarker) {
+      reportLocationMarker = L.marker(location, { draggable: true }).addTo(reportLocationMap);
+      reportLocationMarker.on('dragend', () => setReportLocation(reportLocationMarker.getLatLng()));
+    } else {
+      reportLocationMarker.setLatLng(location);
+    }
+  }
+
+  function initReportLocationMap() {
+    if (!window.L || reportLocationMap) return;
+    reportLocationMap = L.map('report-location-map').setView([defaultReportLocation.lat, defaultReportLocation.lng], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(reportLocationMap);
+    reportLocationMap.on('click', (event) => {
+      setReportLocation(event.latlng);
+    });
+    setReportLocation(defaultReportLocation);
+    if (!navigator.geolocation) {
+      console.warn('Geolocation is not supported; using the default report location.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const currentLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        reportLocationMap.setView(currentLocation, 15);
+        setReportLocation(currentLocation);
+        window.setTimeout(() => reportLocationMap.invalidateSize(), 0);
+      },
+      (error) => {
+        console.warn('Unable to detect current location; using the default report location.', error.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    );
+  }
+
 function renderAlerts() {
   renderUrgentBanner();
   const selectedRole = roleFilter.value;
@@ -253,9 +370,24 @@ async function loadAlerts({ showLoading = true } = {}) {
   }
 }
 
-function setModal(open) { modal.hidden = !open; document.body.classList.toggle('modal-open', open); if (open) modal.querySelector('select').focus(); }
+function setModal(open) {
+  modal.hidden = !open;
+  document.body.classList.toggle('modal-open', open);
+  if (open) {
+    modal.querySelector('select').focus();
+    initReportLocationMap();
+    window.setTimeout(() => reportLocationMap?.invalidateSize(), 0);
+  }
+}
 roleFilter.addEventListener('change', renderAlerts);
 alertSearch.addEventListener('input', renderAlerts);
+locationSearchButton.addEventListener('click', searchReportLocation);
+locationSearch.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    searchReportLocation();
+  }
+});
 document.querySelector('#refresh').addEventListener('click', () => loadAlerts());
 document.querySelector('#open-modal').addEventListener('click', () => setModal(true));
 document.querySelector('#close-modal').addEventListener('click', () => setModal(false));
