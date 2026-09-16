@@ -1,16 +1,13 @@
 const express = require('express');
 const multer = require('multer');
 const mongoose = require('mongoose');
-const path = require('path');
-const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
 const CommunityReport = require('../../database/CommunityReport');
 const { analyzeReport } = require('../../ai-engine/insightService');
 
 const router = express.Router();
-const uploadDirectory = path.resolve(process.env.UPLOAD_DIR || 'uploads');
-fs.mkdirSync(uploadDirectory, { recursive: true });
 const upload = multer({
-  dest: uploadDirectory,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024, files: 1 },
   fileFilter: (req, file, callback) => {
     if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('audio/')) return callback(null, true);
@@ -19,6 +16,48 @@ const upload = multer({
     callback(error);
   }
 });
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+function uploadToCloudinary(file) {
+  if (!file) return Promise.resolve(null);
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    const error = new Error('Cloudinary upload is not configured');
+    error.status = 503;
+    return Promise.reject(error);
+  }
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: process.env.CLOUDINARY_FOLDER || 'pahadi-nazar',
+        resource_type: file.mimetype.startsWith('audio/') ? 'video' : 'image'
+      },
+      (error, result) => {
+        if (error) {
+          const uploadError = new Error(`Cloudinary upload failed: ${error.message}`);
+          uploadError.status = 502;
+          return reject(uploadError);
+        }
+        if (!result?.secure_url) {
+          const uploadError = new Error('Cloudinary upload returned no secure URL');
+          uploadError.status = 502;
+          return reject(uploadError);
+        }
+        resolve(result.secure_url);
+      }
+    );
+    stream.on('error', (error) => {
+      const uploadError = new Error(`Cloudinary upload stream failed: ${error.message}`);
+      uploadError.status = 502;
+      reject(uploadError);
+    });
+    stream.end(file.buffer);
+  });
+}
 
 function isValidReportId(id) {
   return mongoose.isValidObjectId(id);
@@ -57,11 +96,12 @@ router.post('/', upload.fields([{ name: 'media_file', maxCount: 1 }, { name: 'me
     if (!userRole) return res.status(400).json({ error: 'user_role is required' });
     if (!['photo', 'voice', 'text'].includes(mediaType)) return res.status(400).json({ error: 'media_type must be photo, voice, or text' });
     if (mediaType === 'text' && !textObservation) return res.status(400).json({ error: 'text_observation is required for text reports' });
+    const mediaUrl = file ? await uploadToCloudinary(file) : req.body.media_url || req.body.mediaUrl;
 
     const report = await CommunityReport.create({
       userRole,
       mediaType,
-      mediaUrl: file ? `/uploads/${file.filename}` : req.body.media_url || req.body.mediaUrl,
+      mediaUrl,
       textObservation,
       location: locationFromBody(req.body),
       verificationStatus: 'pending_verification'

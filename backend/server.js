@@ -13,7 +13,6 @@ const allowedOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'prod
 app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigin || false }));
 app.use(express.json({ limit: '2mb' }));
-app.use('/uploads', express.static(path.resolve(process.env.UPLOAD_DIR || 'uploads')));
 app.use('/api/reports', ingestionRoutes);
 app.use('/api/alerts', ingestionRoutes);
 app.use(express.static(path.resolve('public')));
