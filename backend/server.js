@@ -9,10 +9,39 @@ const ingestionRoutes = require('./routes/ingestion');
 const app = express();
 const port = Number(process.env.PORT) || 8080;
 const allowedOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? null : '*');
+let databaseConnectionPromise;
+
+function connectDatabase() {
+  if (!process.env.MONGODB_URI) {
+    const error = new Error('MONGODB_URI is required; refusing to start without a database connection');
+    error.status = 503;
+    return Promise.reject(error);
+  }
+  if (mongoose.connection.readyState === 1) return Promise.resolve();
+  if (!databaseConnectionPromise) {
+    databaseConnectionPromise = mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 10,
+      retryWrites: true
+    }).then(() => undefined).catch((error) => {
+      databaseConnectionPromise = undefined;
+      throw error;
+    });
+  }
+  return databaseConnectionPromise;
+}
 
 app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigin || false }));
 app.use(express.json({ limit: '2mb' }));
+app.use('/api', async (req, res, next) => {
+  try {
+    await connectDatabase();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 app.use('/api/reports', ingestionRoutes);
 app.use('/api/alerts', ingestionRoutes);
 app.use(express.static(path.resolve('public')));
@@ -41,12 +70,7 @@ app.use((error, req, res, next) => {
 });
 
 async function start() {
-  if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required; refusing to start without a database connection');
-  await mongoose.connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000,
-    maxPoolSize: 10,
-    retryWrites: true
-  });
+  await connectDatabase();
   mongoose.connection.on('error', (error) => console.error('MongoDB connection error:', error.message));
   return new Promise((resolve, reject) => {
     const server = app.listen(port, () => {
@@ -63,6 +87,8 @@ async function start() {
   });
 }
 
-if (require.main === module) start().catch((error) => { console.error('Startup failed:', error); process.exit(1); });
+if (require.main === module && process.env.NODE_ENV !== 'production') {
+  start().catch((error) => { console.error('Startup failed:', error); process.exit(1); });
+}
 
-module.exports = { app, start };
+module.exports = app;
